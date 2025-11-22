@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard University – Data Pipes Map</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 1rem 1.5rem;
+      background: #f7f7f7;
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 0.2rem;
+    }
+    #controls {
+      margin: 0.5rem 0 1rem 0;
+    }
+    button {
+      margin-right: 0.5rem;
+      padding: 0.35rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid #ccc;
+      background: white;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    button.active {
+      background: #333;
+      color: white;
+      border-color: #333;
+    }
+    #chart {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+      padding: 0.5rem;
+    }
+    svg {
+      width: 100%;
+      height: 600px;
+    }
+    .link {
+      stroke-opacity: 0.7;
+    }
+    .node-label {
+      font-size: 10px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Dashboard University – Data Pipes</h1>
+  <p style="max-width: 700px;">
+    Toggle between the teaching and research stacks. Nodes are platforms, people, vendors and landlords;
+    edges show data flows (solid) and ownership / governance links (dashed). Hover to see what is being extracted.
+  </p>
+  <div id="controls">
+    <button id="btnTeaching" class="active">Teaching stack</button>
+    <button id="btnResearch">Research stack</button>
+  </div>
+  <div id="chart">
+    <svg></svg>
+  </div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    const width = 900;
+    const height = 600;
+
+    const yForBand = {
+      bottom: height * 0.75,
+      middle: height * 0.5,
+      top: height * 0.25
+    };
+
+    const levelColor = d => {
+      switch (d.level) {
+        case "people": return "#e15759";
+        case "service": return "#f28e2b";
+        case "platform": return "#4e79a7";
+        case "system": return "#59a14f";
+        case "analytics": return "#af7aa1";
+        case "governance": return "#ff9da7";
+        case "company": return "#9c755f";
+        case "landlord": return "#bab0ab";
+        default: return "#888";
+      }
+    };
+
+    const svg = d3.select("svg");
+
+    Promise.all([
+      d3.csv("nodes.csv"),
+      d3.csv("edges.csv")
+    ]).then(([nodes, edges]) => {
+      // Default stack
+      drawStack("teaching");
+
+      d3.select("#btnTeaching").on("click", () => {
+        setActiveButton("teaching");
+        drawStack("teaching");
+      });
+
+      d3.select("#btnResearch").on("click", () => {
+        setActiveButton("research");
+        drawStack("research");
+      });
+
+      function setActiveButton(stack) {
+        d3.selectAll("button").classed("active", false);
+        if (stack === "teaching") {
+          d3.select("#btnTeaching").classed("active", true);
+        } else {
+          d3.select("#btnResearch").classed("active", true);
+        }
+      }
+
+      function drawStack(stack) {
+        svg.selectAll("*").remove();
+
+        const stackNodes = nodes.filter(d => d.stack === stack);
+        const nodeById = new Map(stackNodes.map(d => [d.id, d]));
+
+        const stackEdges = edges
+          .filter(e => e.stack === stack && nodeById.has(e.source) && nodeById.has(e.target))
+          .map(e => Object.assign({}, e, {
+            source: nodeById.get(e.source),
+            target: nodeById.get(e.target)
+          }));
+
+        const link = svg.append("g")
+          .attr("stroke-linecap", "round")
+          .selectAll("line")
+          .data(stackEdges)
+          .join("line")
+          .attr("class", "link")
+          .attr("stroke", d => {
+            if (d.type === "ownership") return "#999";
+            if (d.type === "governance") return "#666";
+            return "#333";
+          })
+          .attr("stroke-dasharray", d => d.type === "flow" ? "0" : "4 4")
+          .attr("stroke-width", 1.4);
+
+        link.append("title")
+          .text(d => d.label);
+
+        const node = svg.append("g")
+          .selectAll("circle")
+          .data(stackNodes)
+          .join("circle")
+          .attr("r", d => {
+            switch (d.level) {
+              case "landlord": return 10;
+              case "company": return 8;
+              case "governance": return 7;
+              default: return 6;
+            }
+          })
+          .attr("fill", levelColor)
+          .attr("stroke", "#fff")
+          .attr("stroke-width", 1.2);
+
+        node.append("title")
+          .text(d => d.label);
+
+        const label = svg.append("g")
+          .selectAll("text")
+          .data(stackNodes)
+          .join("text")
+          .attr("class", "node-label")
+          .attr("dy", "0.31em")
+          .text(d => d.label);
+
+        const simulation = d3.forceSimulation(stackNodes)
+          .force("link", d3.forceLink(stackEdges).id(d => d.id).distance(140))
+          .force("charge", d3.forceManyBody().strength(-260))
+          .force("x", d3.forceX(width / 2).strength(0.06))
+          .force("y", d3.forceY(d => yForBand[d.zlevel] || height / 2).strength(0.3))
+          .on("tick", () => {
+            link
+              .attr("x1", d => d.source.x)
+              .attr("y1", d => d.source.y)
+              .attr("x2", d => d.target.x)
+              .attr("y2", d => d.target.y);
+
+            node
+              .attr("cx", d => d.x)
+              .attr("cy", d => d.y);
+
+            label
+              .attr("x", d => d.x + 10)
+              .attr("y", d => d.y);
+          });
+
+        // Drag behaviour
+        node.call(d3.drag()
+          .on("start", (event, d) => {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+          })
+          .on("drag", (event, d) => {
+            d.fx = event.x;
+            d.fy = event.y;
+          })
+          .on("end", (event, d) => {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+          }));
+      }
+    });
+  </script>
+</body>
+</html>
