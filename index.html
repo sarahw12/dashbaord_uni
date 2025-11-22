@@ -192,9 +192,9 @@
 <body>
   <h1>Dashboard University – Data Pipes</h1>
   <p id="intro">
-    Toggle between the teaching and research stacks. Nodes show people, platforms, vendors and landlords;
-    solid lines show data and metric flows, dashed lines show ownership and governance relations.
-    Use the controls to pull different layers into focus, and click individual nodes to see what they ingest and emit.
+    Toggle between the teaching and research stacks. Nodes show people, platforms, vendors and landlords.
+    Default view shows a banded layout (top/middle/bottom). Use the controls to switch stack or pull a layer
+    into a radial view, and click individual nodes to see what they ingest and emit.
   </p>
   <div id="controls">
     <button id="btnTeaching" class="active">Teaching stack</button>
@@ -254,8 +254,8 @@
         </div>
 
         <div class="legend-note">
-          Edge tooltips summarise the main kinds of data or metrics being extracted at each step.
-          The layout nudges nodes toward these three vertical bands, but can be re-centred by the controls.
+          Default view uses a simple grid by band. Radial view recentres the chosen layer in the middle
+          with all other nodes orbiting around it.
         </div>
       </div>
     </div>
@@ -279,9 +279,8 @@
       </div>
 
       <div class="legend-note">
-        Click a row to pull that node-type into a top row across the map. Click again to reset.
-        Use Default view at any time to return to the baseline layout for this stack.
-        Combine this with the stack toggle above to compare teaching and research infrastructures.
+        Default view returns to the baseline grid for the current stack.
+        Click any row to pivot into a radial view with that layer pulled into focus.
       </div>
     </aside>
   </div>
@@ -315,15 +314,17 @@
     let focusLevel = null;
     let selectedNodeId = null;
 
-    const svg = d3.select("svg");
-
     let nodesData = [];
     let edgesData = [];
+
+    const svg = d3.select("svg");
 
     d3.csv("nodes.csv").then(nodes => {
       d3.csv("edges.csv").then(edges => {
         nodesData = nodes;
         edgesData = edges;
+
+        setActiveButton(currentStack);
         drawStack(currentStack, { reset: true });
 
         d3.select("#btnTeaching").on("click", () => {
@@ -344,7 +345,6 @@
           drawStack(currentStack, { reset: true });
         });
 
-        // Default view button -> reset layout for current stack
         d3.select("#btnDefaultLayout").on("click", () => {
           focusLevel = null;
           selectedNodeId = null;
@@ -352,21 +352,19 @@
           drawStack(currentStack, { reset: true });
         });
 
-        // Controls click to focus by level
         d3.selectAll(".legend-level").on("click", function() {
           const level = this.getAttribute("data-level");
           if (focusLevel === level) {
-            focusLevel = null; // toggle off
+            focusLevel = null;
             d3.selectAll(".legend-level").classed("active", false);
+            drawStack(currentStack, { reset: true });
           } else {
             focusLevel = level;
             d3.selectAll(".legend-level").classed("active", false);
             d3.select(this).classed("active", true);
+            drawStack(currentStack, { reset: false });
           }
-          drawStack(currentStack, { reset: false });
         });
-
-        setActiveButton(currentStack);
       });
     });
 
@@ -437,7 +435,7 @@
         detailsEl.innerHTML = html;
       }
 
-      // Compute a "home" layout for this stack for Default view
+      // --- Default "grid" layout by band ---
       const bands = ["top", "middle", "bottom"];
       const bandNodes = { top: [], middle: [], bottom: [] };
       stackNodes.forEach(d => {
@@ -448,7 +446,6 @@
       bands.forEach(band => {
         const arr = bandNodes[band];
         if (!arr || arr.length === 0) return;
-        // Sort for stable ordering by level + label
         arr.sort((a, b) => d3.ascending((a.level || "") + (a.label || ""), (b.level || "") + (b.label || "")));
         const n = arr.length;
         arr.forEach((d, i) => {
@@ -456,27 +453,41 @@
           const homeY = yForBand[band] || height / 2;
           d.homeX = homeX;
           d.homeY = homeY;
-          if (doReset) {
+          if (doReset || (!focusLevel && (d.x == null || d.y == null))) {
             d.x = homeX;
             d.y = homeY;
-            d.fx = null;
-            d.fy = null;
           }
         });
       });
 
-      const focusNodes = focusLevel
-        ? stackNodes.filter(d => d.level === focusLevel)
-        : [];
+      // --- Radial layout when a layer is in focus ---
+      if (focusLevel) {
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const focusNodes = stackNodes.filter(d => d.level === focusLevel);
+        const otherNodes = stackNodes.filter(d => d.level !== focusLevel);
 
-      const focusTargetX = new Map();
-      if (focusNodes.length > 0) {
-        focusNodes.forEach((d, i) => {
-          const x = width * (i + 1) / (focusNodes.length + 1); // evenly spaced across width
-          focusTargetX.set(d.id, x);
-        });
+        const rFocus = Math.min(width, height) * 0.18;
+        const rOther = Math.min(width, height) * 0.33;
+
+        if (focusNodes.length > 0) {
+          focusNodes.forEach((d, i) => {
+            const angle = 2 * Math.PI * (i / focusNodes.length);
+            d.x = centerX + rFocus * Math.cos(angle);
+            d.y = centerY + rFocus * Math.sin(angle);
+          });
+        }
+
+        if (otherNodes.length > 0) {
+          otherNodes.forEach((d, i) => {
+            const angle = 2 * Math.PI * (i / otherNodes.length);
+            d.x = centerX + rOther * Math.cos(angle);
+            d.y = centerY + rOther * Math.sin(angle);
+          });
+        }
       }
 
+      // --- Draw links and nodes based on d.x / d.y ---
       const link = svg.append("g")
         .attr("stroke-linecap", "round")
         .selectAll("line")
@@ -489,7 +500,11 @@
           return "#333";
         })
         .attr("stroke-dasharray", d => d.type === "flow" ? "0" : "4 4")
-        .attr("stroke-width", 1.4);
+        .attr("stroke-width", 1.4)
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
 
       link.append("title")
         .text(d => {
@@ -503,7 +518,8 @@
         .selectAll("g")
         .data(stackNodes)
         .join("g")
-        .attr("class", "node");
+        .attr("class", "node")
+        .attr("transform", d => "translate(" + d.x + "," + d.y + ")");
 
       // Circles – users and local services
       node.append("circle")
@@ -552,56 +568,33 @@
         .join("text")
         .attr("class", "node-label")
         .attr("dy", "0.31em")
+        .attr("x", d => d.x + 10)
+        .attr("y", d => d.y)
         .text(d => d.label);
 
-      const simulation = d3.forceSimulation(stackNodes)
-        .force("link", d3.forceLink(stackEdges).id(d => d.id).distance(140))
-        .force("charge", d3.forceManyBody().strength(-200))
-        .force("x", d3.forceX(d => {
-          if (focusLevel && focusTargetX.has(d.id)) {
-            return focusTargetX.get(d.id);
-          }
-          if (d.homeX != null) return d.homeX;
-          return width / 2;
-        }).strength(focusLevel ? 0.4 : 0.1))
-        .force("y", d3.forceY(d => {
-          if (focusLevel && focusTargetX.has(d.id)) {
-            return height * 0.18; // top row for focused level
-          }
-          if (d.homeY != null) return d.homeY;
-          return yForBand[d.zlevel] || height / 2;
-        }).strength(focusLevel ? 0.5 : 0.6))
-        .on("tick", () => {
-          link
-            .attr("x1", d => d.source.x)
-            .attr("y1", d => d.source.y)
-            .attr("x2", d => d.target.x)
-            .attr("y2", d => d.target.y);
+      function refreshPositions() {
+        link
+          .attr("x1", d => d.source.x)
+          .attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x)
+          .attr("y2", d => d.target.y);
 
-          node
-            .attr("transform", d => "translate(" + d.x + "," + d.y + ")");
+        node
+          .attr("transform", d => "translate(" + d.x + "," + d.y + ")");
 
-          label
-            .attr("x", d => d.x + 10)
-            .attr("y", d => d.y);
-        });
+        label
+          .attr("x", d => d.x + 10)
+          .attr("y", d => d.y);
+      }
 
       node.call(d3.drag()
-        .on("start", (event, d) => {
-          if (!event.active) simulation.alphaTarget(0.3).restart();
-          d.fx = d.x;
-          d.fy = d.y;
-        })
         .on("drag", (event, d) => {
-          d.fx = event.x;
-          d.fy = event.y;
-        })
-        .on("end", (event, d) => {
-          if (!event.active) simulation.alphaTarget(0);
-          // Keep d.fx / d.fy, so manual arrangements persist until Default view is used.
+          d.x = event.x;
+          d.y = event.y;
+          refreshPositions();
         }));
 
-      // Restore selection if we have one and it's in this stack
+      // Restore selection if we have one
       if (selectedNodeId) {
         const sel = stackNodes.find(d => d.id === selectedNodeId);
         if (sel) {
