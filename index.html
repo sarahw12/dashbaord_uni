@@ -393,7 +393,7 @@
           const arr = bandNodes[band];
           if (!arr || arr.length === 0) return;
           // Sort for stable ordering by level + label
-          arr.sort((a, b) => d3.ascending((a.level || "") + (a.label || ""), (b.level || "") + (b.label || "")));
+          arr.sort((a, b) => d3.ascending((a.level || "") + (a.label || ""), (b.level || "") + (b.label || ""));
           const n = arr.length;
           arr.forEach((d, i) => {
             const homeX = width * (i + 1) / (n + 1);
@@ -403,8 +403,8 @@
             if (doReset) {
               d.x = homeX;
               d.y = homeY;
-              d.fx = homeX;
-              d.fy = homeY;
+              d.fx = null;
+              d.fy = null;
             }
           });
         });
@@ -596,7 +596,7 @@
           .on("end", (event, d) => {
             if (!event.active) simulation.alphaTarget(0);
             // Keep d.fx / d.fy where the user left them,
-            // so manual arrangements persist.
+            // so manual arrangements persist until Default view is pressed.
           }));
 
         // Restore selection if still in this stack
