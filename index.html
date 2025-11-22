@@ -38,7 +38,7 @@
     }
     #layout {
       display: grid;
-      grid-template-columns: minmax(0, 3fr) minmax(240px, 1fr);
+      grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
       grid-gap: 1rem;
       align-items: flex-start;
     }
@@ -83,14 +83,43 @@
       align-items: center;
       margin-bottom: 0.18rem;
     }
+    .legend-row.legend-level {
+      cursor: pointer;
+    }
+    .legend-row.legend-level.active {
+      font-weight: 700;
+      text-decoration: underline;
+    }
+
+    /* Swatches aligned with node shapes */
     .swatch {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
+      width: 14px;
+      height: 14px;
       margin-right: 0.4rem;
       border: 1px solid rgba(0,0,0,0.2);
       flex-shrink: 0;
+      border-radius: 3px; /* default: small rounded square */
     }
+    /* Circles – users and local services */
+    .swatch.people,
+    .swatch.service {
+      border-radius: 50%;
+    }
+    /* Rounded rectangles – platforms / systems / analytics / governance */
+    .swatch.platform,
+    .swatch.system,
+    .swatch.analytics,
+    .swatch.governance {
+      border-radius: 5px;
+      width: 18px;
+      height: 10px;
+    }
+    /* Squares – vendors and landlords */
+    .swatch.company,
+    .swatch.landlord {
+      border-radius: 0;
+    }
+    /* Colours */
     .swatch.people { background: #e15759; }
     .swatch.service { background: #f28e2b; }
     .swatch.platform { background: #4e79a7; }
@@ -99,6 +128,7 @@
     .swatch.governance { background: #ff9da7; }
     .swatch.company { background: #9c755f; }
     .swatch.landlord { background: #bab0ab; }
+
     .legend-edge {
       display: flex;
       align-items: center;
@@ -115,12 +145,10 @@
       color: #555;
       margin-top: 0.35rem;
     }
-    .legend-level {
-      cursor: pointer;
-    }
-    .legend-level.active {
-      font-weight: 700;
-      text-decoration: underline;
+    .node.selected circle,
+    .node.selected rect {
+      stroke: #000;
+      stroke-width: 2px;
     }
   </style>
 </head>
@@ -129,7 +157,8 @@
   <p id="intro">
     Toggle between the teaching and research stacks. Nodes show people, platforms, vendors and landlords;
     solid lines show data and metric flows, dashed lines show ownership and governance relations.
-    Hover to see what is being extracted or connected. Click a node-type in the legend to recentre the layout around that function.
+    Hover to see what is being extracted or connected. Click a node-type in the controls to pull that function into focus,
+    and click individual nodes to see what they ingest and emit.
   </p>
   <div id="controls">
     <button id="btnTeaching" class="active">Teaching stack</button>
@@ -141,11 +170,10 @@
       <svg></svg>
     </div>
     <aside id="legend">
-      <h2>Legend</h2>
+      <h2>Controls</h2>
 
       <div class="legend-section">
-        <div class="legend-title">Node colours (what kind of thing)</div>
-
+        <!-- interactive level filters, no heading text -->
         <div class="legend-row legend-level" data-level="people"><span class="swatch people"></span> People and practitioners</div>
         <div class="legend-row legend-level" data-level="service"><span class="swatch service"></span> Local services and support</div>
         <div class="legend-row legend-level" data-level="platform"><span class="swatch platform"></span> Platforms and tools</div>
@@ -193,10 +221,16 @@
         <div class="legend-row">Bottom: people, services and lived practice</div>
       </div>
 
+      <div class="legend-section">
+        <div class="legend-title">Node details</div>
+        <div id="details-content">
+          Click a node to see what data flows in and out of it.
+        </div>
+      </div>
+
       <div class="legend-note">
-        Edge tooltips summarise the main kinds of data or metrics being extracted at each step
-        (e.g. <em>email metadata</em>, <em>click logs</em>, <em>field weighted impact</em>).
-        Click a colour row above to pull that node-type into the centre of the layout.
+        Edge tooltips summarise the main kinds of data or metrics being extracted at each step.
+        Use the controls to pivot the layout, then click individual nodes to inspect their local data ecology.
       </div>
     </aside>
   </div>
@@ -228,6 +262,7 @@
 
     let currentStack = "teaching";
     let focusLevel = null;
+    let selectedNode = null;
 
     const svg = d3.select("svg");
 
@@ -239,12 +274,18 @@
 
       d3.select("#btnTeaching").on("click", () => {
         currentStack = "teaching";
+        selectedNode = null;
+        focusLevel = null;
+        d3.selectAll(".legend-level").classed("active", false);
         setActiveButton(currentStack);
         drawStack(currentStack);
       });
 
       d3.select("#btnResearch").on("click", () => {
         currentStack = "research";
+        selectedNode = null;
+        focusLevel = null;
+        d3.selectAll(".legend-level").classed("active", false);
         setActiveButton(currentStack);
         drawStack(currentStack);
       });
@@ -284,6 +325,61 @@
             source: nodeById.get(e.source),
             target: nodeById.get(e.target)
           }));
+
+        const detailsEl = document.getElementById("details-content");
+
+        function updateDetails(nodeDatum) {
+          if (!detailsEl) return;
+
+          if (!nodeDatum) {
+            detailsEl.innerHTML = "Click a node to see what data flows in and out of it.";
+            return;
+          }
+
+          const outEdges = stackEdges.filter(e => e.source === nodeDatum && e.type === "flow");
+          const inEdges  = stackEdges.filter(e => e.target === nodeDatum && e.type === "flow");
+
+          const safe = str => (str || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+          let html = "";
+          html += `<strong>${safe(nodeDatum.label)}</strong><br>`;
+          html += `<span style="font-size:0.8rem;color:#555;">${safe(nodeDatum.level)}, ${safe(stack)} stack</span>`;
+
+          html += "<div style='margin-top:0.4rem;'>";
+
+          if (outEdges.length > 0) {
+            html += "<div style='margin-bottom:0.25rem; font-weight:600;'>Outgoing data flows</div><ul style='padding-left:1.1rem; margin-top:0;'>";
+            outEdges.forEach(e => {
+              html += `<li>→ ${safe(e.target.label)} — <span style="font-size:0.8rem;">${safe(e.label)}</span></li>`;
+            });
+            html += "</ul>";
+          } else {
+            html += "<div style='margin-bottom:0.25rem;'>No outgoing data flows recorded in this map.</div>";
+          }
+
+          if (inEdges.length > 0) {
+            html += "<div style='margin:0.4rem 0 0.25rem 0; font-weight:600;'>Incoming data flows</div><ul style='padding-left:1.1rem; margin-top:0;'>";
+            inEdges.forEach(e => {
+              html += `<li>← ${safe(e.source.label)} — <span style="font-size:0.8rem;">${safe(e.label)}</span></li>`;
+            });
+            html += "</ul>";
+          }
+
+          html += "</div>";
+          detailsEl.innerHTML = html;
+        }
+
+        const focusNodes = focusLevel
+          ? stackNodes.filter(d => d.level === focusLevel)
+          : [];
+
+        const focusTargetX = new Map();
+        if (focusNodes.length > 0) {
+          focusNodes.forEach((d, i) => {
+            const x = width * (i + 1) / (focusNodes.length + 1); // evenly spaced across width
+            focusTargetX.set(d.id, x);
+          });
+        }
 
         const link = svg.append("g")
           .attr("stroke-linecap", "round")
@@ -349,6 +445,13 @@
         node.append("title")
           .text(d => d.label + " (" + d.level + ", " + stack + " stack)");
 
+        // Click to show details and mark selection
+        node.on("click", (event, d) => {
+          selectedNode = d;
+          node.classed("selected", n => n === selectedNode);
+          updateDetails(d);
+        });
+
         const label = svg.append("g")
           .selectAll("text")
           .data(stackNodes)
@@ -357,33 +460,21 @@
           .attr("dy", "0.31em")
           .text(d => d.label);
 
-        const baseX = width / 2;
-        const levelOffset = d => {
-          if (!focusLevel) return 0;
-          if (d.level === focusLevel) return 0;
-          // mild left/right offsets for non-focused levels
-          switch (d.level) {
-            case "people":
-            case "service":
-              return -220;
-            case "platform":
-            case "system":
-            case "analytics":
-            case "governance":
-              return 0;
-            case "company":
-            case "landlord":
-              return 220;
-            default:
-              return 0;
-          }
-        };
-
         const simulation = d3.forceSimulation(stackNodes)
           .force("link", d3.forceLink(stackEdges).id(d => d.id).distance(140))
           .force("charge", d3.forceManyBody().strength(-260))
-          .force("x", d3.forceX(d => baseX + levelOffset(d)).strength(focusLevel ? 0.18 : 0.06))
-          .force("y", d3.forceY(d => yForBand[d.zlevel] || height / 2).strength(0.3))
+          .force("x", d3.forceX(d => {
+            if (focusLevel && focusTargetX.has(d.id)) {
+              return focusTargetX.get(d.id);
+            }
+            return width / 2;
+          }).strength(focusLevel ? 0.35 : 0.06))
+          .force("y", d3.forceY(d => {
+            if (focusLevel && focusTargetX.has(d.id)) {
+              return height * 0.18; // top row for focused level
+            }
+            return yForBand[d.zlevel] || height / 2;
+          }).strength(0.3))
           .on("tick", () => {
             link
               .attr("x1", d => d.source.x)
@@ -414,6 +505,15 @@
             d.fx = null;
             d.fy = null;
           }));
+
+        // Restore selection if still in this stack
+        if (selectedNode && stackNodes.includes(selectedNode)) {
+          node.classed("selected", n => n === selectedNode);
+          updateDetails(selectedNode);
+        } else {
+          selectedNode = null;
+          updateDetails(null);
+        }
       }
     });
   </script>
