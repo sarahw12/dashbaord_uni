@@ -7,15 +7,20 @@
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 0;
-      padding: 1rem 1.5rem;
+      padding: 1rem 1.5rem 2rem 1.5rem;
       background: #f7f7f7;
     }
     h1 {
       font-size: 1.4rem;
       margin-bottom: 0.2rem;
     }
+    #intro {
+      max-width: 760px;
+      font-size: 0.9rem;
+      margin-bottom: 0.75rem;
+    }
     #controls {
-      margin: 0.5rem 0 1rem 0;
+      margin: 0.5rem 0 0.75rem 0;
     }
     button {
       margin-right: 0.5rem;
@@ -30,6 +35,12 @@
       background: #333;
       color: white;
       border-color: #333;
+    }
+    #layout {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(240px, 1fr);
+      grid-gap: 1rem;
+      align-items: flex-start;
     }
     #chart {
       background: white;
@@ -48,20 +59,138 @@
       font-size: 10px;
       pointer-events: none;
     }
+    #legend {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+      padding: 0.75rem 0.9rem;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+    #legend h2 {
+      font-size: 0.95rem;
+      margin: 0 0 0.4rem 0;
+    }
+    .legend-section {
+      margin-bottom: 0.55rem;
+    }
+    .legend-title {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    .legend-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.18rem;
+    }
+    .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 0.4rem;
+      border: 1px solid rgba(0,0,0,0.2);
+      flex-shrink: 0;
+    }
+    .swatch.people { background: #e15759; }
+    .swatch.service { background: #f28e2b; }
+    .swatch.platform { background: #4e79a7; }
+    .swatch.system { background: #59a14f; }
+    .swatch.analytics { background: #af7aa1; }
+    .swatch.governance { background: #ff9da7; }
+    .swatch.company { background: #9c755f; }
+    .swatch.landlord { background: #bab0ab; }
+    .legend-edge {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.18rem;
+    }
+    .legend-edge svg {
+      width: 42px;
+      height: 10px;
+      margin-right: 0.4rem;
+      flex-shrink: 0;
+    }
+    .legend-note {
+      font-size: 0.78rem;
+      color: #555;
+      margin-top: 0.35rem;
+    }
   </style>
 </head>
 <body>
   <h1>Dashboard University – Data Pipes</h1>
-  <p style="max-width: 700px;">
-    Toggle between the teaching and research stacks. Nodes are platforms, people, vendors and landlords;
-    edges show data flows (solid) and ownership / governance links (dashed). Hover to see what is being extracted.
+  <p id="intro">
+    Toggle between the teaching and research stacks. Nodes show people, platforms, vendors and landlords;
+    solid lines show data and metric flows, dashed lines show ownership and governance relations.
+    Hover to see what is being extracted or connected.
   </p>
   <div id="controls">
     <button id="btnTeaching" class="active">Teaching stack</button>
     <button id="btnResearch">Research stack</button>
   </div>
-  <div id="chart">
-    <svg></svg>
+
+  <div id="layout">
+    <div id="chart">
+      <svg></svg>
+    </div>
+    <aside id="legend">
+      <h2>Legend</h2>
+
+      <div class="legend-section">
+        <div class="legend-title">Node colours (what kind of thing)</div>
+
+        <div class="legend-row"><span class="swatch people"></span> People and practitioners</div>
+        <div class="legend-row"><span class="swatch service"></span> Local services and support</div>
+        <div class="legend-row"><span class="swatch platform"></span> Platforms and tools</div>
+        <div class="legend-row"><span class="swatch system"></span> Core systems of record</div>
+        <div class="legend-row"><span class="swatch analytics"></span> Analytics and dashboards</div>
+        <div class="legend-row"><span class="swatch governance"></span> Governance and KPIs</div>
+        <div class="legend-row"><span class="swatch company"></span> Vendor companies</div>
+        <div class="legend-row"><span class="swatch landlord"></span> Financial landlords / parents</div>
+      </div>
+
+      <div class="legend-section">
+        <div class="legend-title">Node shapes (function in the stack)</div>
+        <div class="legend-row">● Circles – users and local services (people, support)</div>
+        <div class="legend-row">▭ Rounded rectangles – institutional software and analytics layers</div>
+        <div class="legend-row">■ Squares – owners and financial landlords</div>
+      </div>
+
+      <div class="legend-section">
+        <div class="legend-title">Line styles (how they relate)</div>
+
+        <div class="legend-edge">
+          <svg>
+            <line x1="2" y1="5" x2="40" y2="5" stroke="#333" stroke-width="1.5" />
+          </svg>
+          Data / metric flows
+        </div>
+        <div class="legend-edge">
+          <svg>
+            <line x1="2" y1="5" x2="40" y2="5" stroke="#999" stroke-width="1.5" stroke-dasharray="4 4" />
+          </svg>
+          Ownership (platform → vendor → landlord)
+        </div>
+        <div class="legend-edge">
+          <svg>
+            <line x1="2" y1="5" x2="40" y2="5" stroke="#666" stroke-width="1.5" stroke-dasharray="4 4" />
+          </svg>
+          Governance pressure (KPIs, strategy, workload)
+        </div>
+      </div>
+
+      <div class="legend-section">
+        <div class="legend-title">Vertical bands</div>
+        <div class="legend-row">Top: corporate owners, landlords, governance nodes</div>
+        <div class="legend-row">Middle: software and analytics layer</div>
+        <div class="legend-row">Bottom: people, services and lived practice</div>
+      </div>
+
+      <div class="legend-note">
+        Edge tooltips summarise the main kinds of data or metrics being extracted at each step
+        (e.g. <em>email metadata</em>, <em>click logs</em>, <em>field weighted impact</em>).
+      </div>
+    </aside>
   </div>
 
   <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -109,7 +238,7 @@
       });
 
       function setActiveButton(stack) {
-        d3.selectAll("button").classed("active", false);
+        d3.selectAll("#controls button").classed("active", false);
         if (stack === "teaching") {
           d3.select("#btnTeaching").classed("active", true);
         } else {
@@ -145,26 +274,54 @@
           .attr("stroke-width", 1.4);
 
         link.append("title")
-          .text(d => d.label);
+          .text(d => {
+            const kind = d.type === "flow" ? "Data / metrics" :
+                         d.type === "ownership" ? "Ownership / control" :
+                         "Governance pressure";
+            return kind + ": " + (d.label || "");
+          });
 
+        // Node groups
         const node = svg.append("g")
-          .selectAll("circle")
+          .selectAll("g")
           .data(stackNodes)
-          .join("circle")
-          .attr("r", d => {
-            switch (d.level) {
-              case "landlord": return 10;
-              case "company": return 8;
-              case "governance": return 7;
-              default: return 6;
-            }
-          })
-          .attr("fill", levelColor)
+          .join("g")
+          .attr("class", "node");
+
+        // Circles for users and local services
+        node.append("circle")
+          .filter(d => d.level === "people" || d.level === "service")
+          .attr("r", d => d.level === "people" ? 8 : 7)
+          .attr("fill", d => levelColor(d))
+          .attr("stroke", "#fff")
+          .attr("stroke-width", 1.2);
+
+        // Rounded rectangles for institutional software / analytics
+        node.append("rect")
+          .filter(d => d.level === "platform" || d.level === "system" || d.level === "analytics" || d.level === "governance")
+          .attr("x", -12)
+          .attr("y", -8)
+          .attr("width", 24)
+          .attr("height", 16)
+          .attr("rx", 5)
+          .attr("ry", 5)
+          .attr("fill", d => levelColor(d))
+          .attr("stroke", "#fff")
+          .attr("stroke-width", 1.2);
+
+        // Squares for owners and landlords
+        node.append("rect")
+          .filter(d => d.level === "company" || d.level === "landlord")
+          .attr("x", -9)
+          .attr("y", -9)
+          .attr("width", 18)
+          .attr("height", 18)
+          .attr("fill", d => levelColor(d))
           .attr("stroke", "#fff")
           .attr("stroke-width", 1.2);
 
         node.append("title")
-          .text(d => d.label);
+          .text(d => d.label + " (" + d.level + ", " + stack + " stack)");
 
         const label = svg.append("g")
           .selectAll("text")
@@ -187,15 +344,13 @@
               .attr("y2", d => d.target.y);
 
             node
-              .attr("cx", d => d.x)
-              .attr("cy", d => d.y);
+              .attr("transform", d => "translate(" + d.x + "," + d.y + ")");
 
             label
               .attr("x", d => d.x + 10)
               .attr("y", d => d.y);
           });
 
-        // Drag behaviour
         node.call(d3.drag()
           .on("start", (event, d) => {
             if (!event.active) simulation.alphaTarget(0.3).restart();
