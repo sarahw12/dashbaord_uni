@@ -115,6 +115,13 @@
       color: #555;
       margin-top: 0.35rem;
     }
+    .legend-level {
+      cursor: pointer;
+    }
+    .legend-level.active {
+      font-weight: 700;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -122,7 +129,7 @@
   <p id="intro">
     Toggle between the teaching and research stacks. Nodes show people, platforms, vendors and landlords;
     solid lines show data and metric flows, dashed lines show ownership and governance relations.
-    Hover to see what is being extracted or connected.
+    Hover to see what is being extracted or connected. Click a node-type in the legend to recentre the layout around that function.
   </p>
   <div id="controls">
     <button id="btnTeaching" class="active">Teaching stack</button>
@@ -139,14 +146,14 @@
       <div class="legend-section">
         <div class="legend-title">Node colours (what kind of thing)</div>
 
-        <div class="legend-row"><span class="swatch people"></span> People and practitioners</div>
-        <div class="legend-row"><span class="swatch service"></span> Local services and support</div>
-        <div class="legend-row"><span class="swatch platform"></span> Platforms and tools</div>
-        <div class="legend-row"><span class="swatch system"></span> Core systems of record</div>
-        <div class="legend-row"><span class="swatch analytics"></span> Analytics and dashboards</div>
-        <div class="legend-row"><span class="swatch governance"></span> Governance and KPIs</div>
-        <div class="legend-row"><span class="swatch company"></span> Vendor companies</div>
-        <div class="legend-row"><span class="swatch landlord"></span> Financial landlords / parents</div>
+        <div class="legend-row legend-level" data-level="people"><span class="swatch people"></span> People and practitioners</div>
+        <div class="legend-row legend-level" data-level="service"><span class="swatch service"></span> Local services and support</div>
+        <div class="legend-row legend-level" data-level="platform"><span class="swatch platform"></span> Platforms and tools</div>
+        <div class="legend-row legend-level" data-level="system"><span class="swatch system"></span> Core systems of record</div>
+        <div class="legend-row legend-level" data-level="analytics"><span class="swatch analytics"></span> Analytics and dashboards</div>
+        <div class="legend-row legend-level" data-level="governance"><span class="swatch governance"></span> Governance and KPIs</div>
+        <div class="legend-row legend-level" data-level="company"><span class="swatch company"></span> Vendor companies</div>
+        <div class="legend-row legend-level" data-level="landlord"><span class="swatch landlord"></span> Financial landlords / parents</div>
       </div>
 
       <div class="legend-section">
@@ -189,6 +196,7 @@
       <div class="legend-note">
         Edge tooltips summarise the main kinds of data or metrics being extracted at each step
         (e.g. <em>email metadata</em>, <em>click logs</em>, <em>field weighted impact</em>).
+        Click a colour row above to pull that node-type into the centre of the layout.
       </div>
     </aside>
   </div>
@@ -218,23 +226,41 @@
       }
     };
 
+    let currentStack = "teaching";
+    let focusLevel = null;
+
     const svg = d3.select("svg");
 
     Promise.all([
       d3.csv("nodes.csv"),
       d3.csv("edges.csv")
     ]).then(([nodes, edges]) => {
-      // Default stack
-      drawStack("teaching");
+      drawStack(currentStack);
 
       d3.select("#btnTeaching").on("click", () => {
-        setActiveButton("teaching");
-        drawStack("teaching");
+        currentStack = "teaching";
+        setActiveButton(currentStack);
+        drawStack(currentStack);
       });
 
       d3.select("#btnResearch").on("click", () => {
-        setActiveButton("research");
-        drawStack("research");
+        currentStack = "research";
+        setActiveButton(currentStack);
+        drawStack(currentStack);
+      });
+
+      // Legend click to focus by level
+      d3.selectAll(".legend-level").on("click", function() {
+        const level = this.getAttribute("data-level");
+        if (focusLevel === level) {
+          focusLevel = null; // toggle off
+          d3.selectAll(".legend-level").classed("active", false);
+        } else {
+          focusLevel = level;
+          d3.selectAll(".legend-level").classed("active", false);
+          d3.select(this).classed("active", true);
+        }
+        drawStack(currentStack);
       });
 
       function setActiveButton(stack) {
@@ -288,7 +314,7 @@
           .join("g")
           .attr("class", "node");
 
-        // Circles for users and local services
+        // Circles – users and local services
         node.append("circle")
           .filter(d => d.level === "people" || d.level === "service")
           .attr("r", d => d.level === "people" ? 8 : 7)
@@ -296,7 +322,7 @@
           .attr("stroke", "#fff")
           .attr("stroke-width", 1.2);
 
-        // Rounded rectangles for institutional software / analytics
+        // Rounded rectangles – institutional software / analytics / governance
         node.append("rect")
           .filter(d => d.level === "platform" || d.level === "system" || d.level === "analytics" || d.level === "governance")
           .attr("x", -12)
@@ -309,7 +335,7 @@
           .attr("stroke", "#fff")
           .attr("stroke-width", 1.2);
 
-        // Squares for owners and landlords
+        // Squares – owners and landlords
         node.append("rect")
           .filter(d => d.level === "company" || d.level === "landlord")
           .attr("x", -9)
@@ -331,10 +357,32 @@
           .attr("dy", "0.31em")
           .text(d => d.label);
 
+        const baseX = width / 2;
+        const levelOffset = d => {
+          if (!focusLevel) return 0;
+          if (d.level === focusLevel) return 0;
+          // mild left/right offsets for non-focused levels
+          switch (d.level) {
+            case "people":
+            case "service":
+              return -220;
+            case "platform":
+            case "system":
+            case "analytics":
+            case "governance":
+              return 0;
+            case "company":
+            case "landlord":
+              return 220;
+            default:
+              return 0;
+          }
+        };
+
         const simulation = d3.forceSimulation(stackNodes)
           .force("link", d3.forceLink(stackEdges).id(d => d.id).distance(140))
           .force("charge", d3.forceManyBody().strength(-260))
-          .force("x", d3.forceX(width / 2).strength(0.06))
+          .force("x", d3.forceX(d => baseX + levelOffset(d)).strength(focusLevel ? 0.18 : 0.06))
           .force("y", d3.forceY(d => yForBand[d.zlevel] || height / 2).strength(0.3))
           .on("tick", () => {
             link
