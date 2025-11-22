@@ -313,302 +313,308 @@
 
     let currentStack = "teaching";
     let focusLevel = null;
-    let selectedNode = null;
+    let selectedNodeId = null;
 
     const svg = d3.select("svg");
 
-    Promise.all([
-      d3.csv("nodes.csv"),
-      d3.csv("edges.csv")
-    ]).then(([nodes, edges]) => {
-      drawStack(currentStack, { reset: true });
+    let nodesData = [];
+    let edgesData = [];
 
-      d3.select("#btnTeaching").on("click", () => {
-        currentStack = "teaching";
-        selectedNode = null;
-        focusLevel = null;
-        d3.selectAll(".legend-level").classed("active", false);
-        setActiveButton(currentStack);
+    d3.csv("nodes.csv").then(nodes => {
+      d3.csv("edges.csv").then(edges => {
+        nodesData = nodes;
+        edgesData = edges;
         drawStack(currentStack, { reset: true });
-      });
 
-      d3.select("#btnResearch").on("click", () => {
-        currentStack = "research";
-        selectedNode = null;
-        focusLevel = null;
-        d3.selectAll(".legend-level").classed("active", false);
-        setActiveButton(currentStack);
-        drawStack(currentStack, { reset: true });
-      });
-
-      // Default view button -> reset layout for current stack
-      d3.select("#btnDefaultLayout").on("click", () => {
-        selectedNode = null;
-        focusLevel = null;
-        d3.selectAll(".legend-level").classed("active", false);
-        drawStack(currentStack, { reset: true });
-      });
-
-      // Controls click to focus by level
-      d3.selectAll(".legend-level").on("click", function() {
-        const level = this.getAttribute("data-level");
-        if (focusLevel === level) {
-          focusLevel = null; // toggle off
+        d3.select("#btnTeaching").on("click", () => {
+          currentStack = "teaching";
+          focusLevel = null;
+          selectedNodeId = null;
           d3.selectAll(".legend-level").classed("active", false);
-        } else {
-          focusLevel = level;
-          d3.selectAll(".legend-level").classed("active", false);
-          d3.select(this).classed("active", true);
-        }
-        drawStack(currentStack);
-      });
+          setActiveButton(currentStack);
+          drawStack(currentStack, { reset: true });
+        });
 
-      function setActiveButton(stack) {
-        d3.selectAll("#btnTeaching, #btnResearch").classed("active", false);
-        if (stack === "teaching") {
-          d3.select("#btnTeaching").classed("active", true);
-        } else {
-          d3.select("#btnResearch").classed("active", true);
+        d3.select("#btnResearch").on("click", () => {
+          currentStack = "research";
+          focusLevel = null;
+          selectedNodeId = null;
+          d3.selectAll(".legend-level").classed("active", false);
+          setActiveButton(currentStack);
+          drawStack(currentStack, { reset: true });
+        });
+
+        // Default view button -> reset layout for current stack
+        d3.select("#btnDefaultLayout").on("click", () => {
+          focusLevel = null;
+          selectedNodeId = null;
+          d3.selectAll(".legend-level").classed("active", false);
+          drawStack(currentStack, { reset: true });
+        });
+
+        // Controls click to focus by level
+        d3.selectAll(".legend-level").on("click", function() {
+          const level = this.getAttribute("data-level");
+          if (focusLevel === level) {
+            focusLevel = null; // toggle off
+            d3.selectAll(".legend-level").classed("active", false);
+          } else {
+            focusLevel = level;
+            d3.selectAll(".legend-level").classed("active", false);
+            d3.select(this).classed("active", true);
+          }
+          drawStack(currentStack, { reset: false });
+        });
+
+        setActiveButton(currentStack);
+      });
+    });
+
+    function setActiveButton(stack) {
+      d3.selectAll("#btnTeaching, #btnResearch").classed("active", false);
+      if (stack === "teaching") {
+        d3.select("#btnTeaching").classed("active", true);
+      } else {
+        d3.select("#btnResearch").classed("active", true);
+      }
+    }
+
+    function drawStack(stack, opts = {}) {
+      const doReset = opts && opts.reset === true;
+
+      svg.selectAll("*").remove();
+
+      const stackNodes = nodesData.filter(d => d.stack === stack);
+      const nodeById = new Map(stackNodes.map(d => [d.id, d]));
+
+      const stackEdges = edgesData
+        .filter(e => e.stack === stack && nodeById.has(e.source) && nodeById.has(e.target))
+        .map(e => Object.assign({}, e, {
+          source: nodeById.get(e.source),
+          target: nodeById.get(e.target)
+        }));
+
+      const detailsEl = document.getElementById("details-content");
+
+      function updateDetails(nodeDatum) {
+        if (!detailsEl) return;
+
+        if (!nodeDatum) {
+          detailsEl.innerHTML = "Click a node to see what data flows in and out of it.";
+          return;
         }
+
+        const outEdges = stackEdges.filter(e => e.source === nodeDatum && e.type === "flow");
+        const inEdges  = stackEdges.filter(e => e.target === nodeDatum && e.type === "flow");
+
+        const safe = str => (str || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+        let html = "";
+        html += `<strong>${safe(nodeDatum.label)}</strong><br>`;
+        html += `<span style="font-size:0.8rem;color:#555;">${safe(nodeDatum.level)}, ${safe(stack)} stack</span>`;
+
+        html += "<div style='margin-top:0.4rem;'>";
+
+        if (outEdges.length > 0) {
+          html += "<div style='margin-bottom:0.25rem; font-weight:600;'>Outgoing data flows</div><ul style='padding-left:1.1rem; margin-top:0;'>";
+          outEdges.forEach(e => {
+            html += `<li>→ ${safe(e.target.label)} — <span style="font-size:0.8rem;">${safe(e.label)}</span></li>`;
+          });
+          html += "</ul>";
+        } else {
+          html += "<div style='margin-bottom:0.25rem;'>No outgoing data flows recorded in this map.</div>";
+        }
+
+        if (inEdges.length > 0) {
+          html += "<div style='margin:0.4rem 0 0.25rem 0; font-weight:600;'>Incoming data flows</div><ul style='padding-left:1.1rem; margin-top:0;'>";
+          inEdges.forEach(e => {
+            html += `<li>← ${safe(e.source.label)} — <span style="font-size:0.8rem;">${safe(e.label)}</span></li>`;
+          });
+          html += "</ul>";
+        }
+
+        html += "</div>";
+        detailsEl.innerHTML = html;
       }
 
-      function drawStack(stack, opts = {}) {
-        svg.selectAll("*").remove();
+      // Compute a "home" layout for this stack for Default view
+      const bands = ["top", "middle", "bottom"];
+      const bandNodes = { top: [], middle: [], bottom: [] };
+      stackNodes.forEach(d => {
+        const band = d.zlevel && bands.includes(d.zlevel) ? d.zlevel : "middle";
+        bandNodes[band].push(d);
+      });
 
-        const stackNodes = nodes.filter(d => d.stack === stack);
-        const nodeById = new Map(stackNodes.map(d => [d.id, d]));
+      bands.forEach(band => {
+        const arr = bandNodes[band];
+        if (!arr || arr.length === 0) return;
+        // Sort for stable ordering by level + label
+        arr.sort((a, b) => d3.ascending((a.level || "") + (a.label || ""), (b.level || "") + (b.label || "")));
+        const n = arr.length;
+        arr.forEach((d, i) => {
+          const homeX = width * (i + 1) / (n + 1);
+          const homeY = yForBand[band] || height / 2;
+          d.homeX = homeX;
+          d.homeY = homeY;
+          if (doReset) {
+            d.x = homeX;
+            d.y = homeY;
+            d.fx = null;
+            d.fy = null;
+          }
+        });
+      });
 
-        const doReset = opts && opts.reset === true;
+      const focusNodes = focusLevel
+        ? stackNodes.filter(d => d.level === focusLevel)
+        : [];
 
-        // Compute a simple "home" layout for this stack: nodes are spaced across
-        // each vertical band, and we can snap back to this when resetting.
-        const bands = ["top", "middle", "bottom"];
-        const bandNodes = { top: [], middle: [], bottom: [] };
-        stackNodes.forEach(d => {
-          const band = d.zlevel && bands.includes(d.zlevel) ? d.zlevel : "middle";
-          bandNodes[band].push(d);
+      const focusTargetX = new Map();
+      if (focusNodes.length > 0) {
+        focusNodes.forEach((d, i) => {
+          const x = width * (i + 1) / (focusNodes.length + 1); // evenly spaced across width
+          focusTargetX.set(d.id, x);
+        });
+      }
+
+      const link = svg.append("g")
+        .attr("stroke-linecap", "round")
+        .selectAll("line")
+        .data(stackEdges)
+        .join("line")
+        .attr("class", "link")
+        .attr("stroke", d => {
+          if (d.type === "ownership") return "#999";
+          if (d.type === "governance") return "#666";
+          return "#333";
+        })
+        .attr("stroke-dasharray", d => d.type === "flow" ? "0" : "4 4")
+        .attr("stroke-width", 1.4);
+
+      link.append("title")
+        .text(d => {
+          const kind = d.type === "flow" ? "Data / metrics" :
+                       d.type === "ownership" ? "Ownership / control" :
+                       "Governance pressure";
+          return kind + ": " + (d.label || "");
         });
 
-        bands.forEach(band => {
-          const arr = bandNodes[band];
-          if (!arr || arr.length === 0) return;
-          // Sort for stable ordering by level + label
-          arr.sort((a, b) => d3.ascending((a.level || "") + (a.label || ""), (b.level || "") + (b.label || ""));
-          const n = arr.length;
-          arr.forEach((d, i) => {
-            const homeX = width * (i + 1) / (n + 1);
-            const homeY = yForBand[band] || height / 2;
-            d.homeX = homeX;
-            d.homeY = homeY;
-            if (doReset) {
-              d.x = homeX;
-              d.y = homeY;
-              d.fx = null;
-              d.fy = null;
-            }
-          });
+      const node = svg.append("g")
+        .selectAll("g")
+        .data(stackNodes)
+        .join("g")
+        .attr("class", "node");
+
+      // Circles – users and local services
+      node.append("circle")
+        .filter(d => d.level === "people" || d.level === "service")
+        .attr("r", d => d.level === "people" ? 8 : 7)
+        .attr("fill", d => levelColor(d))
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 1.2);
+
+      // Rounded rectangles – institutional software / analytics / governance
+      node.append("rect")
+        .filter(d => d.level === "platform" || d.level === "system" || d.level === "analytics" || d.level === "governance")
+        .attr("x", -12)
+        .attr("y", -8)
+        .attr("width", 24)
+        .attr("height", 16)
+        .attr("rx", 5)
+        .attr("ry", 5)
+        .attr("fill", d => levelColor(d))
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 1.2);
+
+      // Squares – owners and landlords
+      node.append("rect")
+        .filter(d => d.level === "company" || d.level === "landlord")
+        .attr("x", -9)
+        .attr("y", -9)
+        .attr("width", 18)
+        .attr("height", 18)
+        .attr("fill", d => levelColor(d))
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 1.2);
+
+      node.append("title")
+        .text(d => d.label + " (" + d.level + ", " + stack + " stack)");
+
+      node.on("click", (event, d) => {
+        selectedNodeId = d.id;
+        node.classed("selected", n => n.id === selectedNodeId);
+        updateDetails(d);
+      });
+
+      const label = svg.append("g")
+        .selectAll("text")
+        .data(stackNodes)
+        .join("text")
+        .attr("class", "node-label")
+        .attr("dy", "0.31em")
+        .text(d => d.label);
+
+      const simulation = d3.forceSimulation(stackNodes)
+        .force("link", d3.forceLink(stackEdges).id(d => d.id).distance(140))
+        .force("charge", d3.forceManyBody().strength(-200))
+        .force("x", d3.forceX(d => {
+          if (focusLevel && focusTargetX.has(d.id)) {
+            return focusTargetX.get(d.id);
+          }
+          if (d.homeX != null) return d.homeX;
+          return width / 2;
+        }).strength(focusLevel ? 0.4 : 0.1))
+        .force("y", d3.forceY(d => {
+          if (focusLevel && focusTargetX.has(d.id)) {
+            return height * 0.18; // top row for focused level
+          }
+          if (d.homeY != null) return d.homeY;
+          return yForBand[d.zlevel] || height / 2;
+        }).strength(focusLevel ? 0.5 : 0.6))
+        .on("tick", () => {
+          link
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+
+          node
+            .attr("transform", d => "translate(" + d.x + "," + d.y + ")");
+
+          label
+            .attr("x", d => d.x + 10)
+            .attr("y", d => d.y);
         });
 
-        const stackEdges = edges
-          .filter(e => e.stack === stack && nodeById.has(e.source) && nodeById.has(e.target))
-          .map(e => Object.assign({}, e, {
-            source: nodeById.get(e.source),
-            target: nodeById.get(e.target)
-          }));
+      node.call(d3.drag()
+        .on("start", (event, d) => {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        })
+        .on("drag", (event, d) => {
+          d.fx = event.x;
+          d.fy = event.y;
+        })
+        .on("end", (event, d) => {
+          if (!event.active) simulation.alphaTarget(0);
+          // Keep d.fx / d.fy, so manual arrangements persist until Default view is used.
+        }));
 
-        const detailsEl = document.getElementById("details-content");
-
-        function updateDetails(nodeDatum) {
-          if (!detailsEl) return;
-
-          if (!nodeDatum) {
-            detailsEl.innerHTML = "Click a node to see what data flows in and out of it.";
-            return;
-          }
-
-          const outEdges = stackEdges.filter(e => e.source === nodeDatum && e.type === "flow");
-          const inEdges  = stackEdges.filter(e => e.target === nodeDatum && e.type === "flow");
-
-          const safe = str => (str || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-          let html = "";
-          html += `<strong>${safe(nodeDatum.label)}</strong><br>`;
-          html += `<span style="font-size:0.8rem;color:#555;">${safe(nodeDatum.level)}, ${safe(stack)} stack</span>`;
-
-          html += "<div style='margin-top:0.4rem;'>";
-
-          if (outEdges.length > 0) {
-            html += "<div style='margin-bottom:0.25rem; font-weight:600;'>Outgoing data flows</div><ul style='padding-left:1.1rem; margin-top:0;'>";
-            outEdges.forEach(e => {
-              html += `<li>→ ${safe(e.target.label)} — <span style="font-size:0.8rem;">${safe(e.label)}</span></li>`;
-            });
-            html += "</ul>";
-          } else {
-            html += "<div style='margin-bottom:0.25rem;'>No outgoing data flows recorded in this map.</div>";
-          }
-
-          if (inEdges.length > 0) {
-            html += "<div style='margin:0.4rem 0 0.25rem 0; font-weight:600;'>Incoming data flows</div><ul style='padding-left:1.1rem; margin-top:0;'>";
-            inEdges.forEach(e => {
-              html += `<li>← ${safe(e.source.label)} — <span style="font-size:0.8rem;">${safe(e.label)}</span></li>`;
-            });
-            html += "</ul>";
-          }
-
-          html += "</div>";
-          detailsEl.innerHTML = html;
-        }
-
-        const focusNodes = focusLevel
-          ? stackNodes.filter(d => d.level === focusLevel)
-          : [];
-
-        const focusTargetX = new Map();
-        if (focusNodes.length > 0) {
-          focusNodes.forEach((d, i) => {
-            const x = width * (i + 1) / (focusNodes.length + 1); // evenly spaced across width
-            focusTargetX.set(d.id, x);
-          });
-        }
-
-        const link = svg.append("g")
-          .attr("stroke-linecap", "round")
-          .selectAll("line")
-          .data(stackEdges)
-          .join("line")
-          .attr("class", "link")
-          .attr("stroke", d => {
-            if (d.type === "ownership") return "#999";
-            if (d.type === "governance") return "#666";
-            return "#333";
-          })
-          .attr("stroke-dasharray", d => d.type === "flow" ? "0" : "4 4")
-          .attr("stroke-width", 1.4);
-
-        link.append("title")
-          .text(d => {
-            const kind = d.type === "flow" ? "Data / metrics" :
-                         d.type === "ownership" ? "Ownership / control" :
-                         "Governance pressure";
-            return kind + ": " + (d.label || "");
-          });
-
-        // Node groups
-        const node = svg.append("g")
-          .selectAll("g")
-          .data(stackNodes)
-          .join("g")
-          .attr("class", "node");
-
-        // Circles – users and local services
-        node.append("circle")
-          .filter(d => d.level === "people" || d.level === "service")
-          .attr("r", d => d.level === "people" ? 8 : 7)
-          .attr("fill", d => levelColor(d))
-          .attr("stroke", "#fff")
-          .attr("stroke-width", 1.2);
-
-        // Rounded rectangles – institutional software / analytics / governance
-        node.append("rect")
-          .filter(d => d.level === "platform" || d.level === "system" || d.level === "analytics" || d.level === "governance")
-          .attr("x", -12)
-          .attr("y", -8)
-          .attr("width", 24)
-          .attr("height", 16)
-          .attr("rx", 5)
-          .attr("ry", 5)
-          .attr("fill", d => levelColor(d))
-          .attr("stroke", "#fff")
-          .attr("stroke-width", 1.2);
-
-        // Squares – owners and landlords
-        node.append("rect")
-          .filter(d => d.level === "company" || d.level === "landlord")
-          .attr("x", -9)
-          .attr("y", -9)
-          .attr("width", 18)
-          .attr("height", 18)
-          .attr("fill", d => levelColor(d))
-          .attr("stroke", "#fff")
-          .attr("stroke-width", 1.2);
-
-        node.append("title")
-          .text(d => d.label + " (" + d.level + ", " + stack + " stack)");
-
-        // Click to show details and mark selection
-        node.on("click", (event, d) => {
-          selectedNode = d;
-          node.classed("selected", n => n === selectedNode);
-          updateDetails(d);
-        });
-
-        const label = svg.append("g")
-          .selectAll("text")
-          .data(stackNodes)
-          .join("text")
-          .attr("class", "node-label")
-          .attr("dy", "0.31em")
-          .text(d => d.label);
-
-        const simulation = d3.forceSimulation(stackNodes)
-          .force("link", d3.forceLink(stackEdges).id(d => d.id).distance(140))
-          // Slightly softer repulsion so nodes don't jitter as much
-          .force("charge", d3.forceManyBody().strength(-200))
-          // X: centre by default, or align to focus row targets
-          .force("x", d3.forceX(d => {
-            if (focusLevel && focusTargetX.has(d.id)) {
-              return focusTargetX.get(d.id);
-            }
-            return width / 2;
-          }).strength(focusLevel ? 0.35 : 0.06))
-          // Y: strongly banded so rows line up more clearly
-          .force("y", d3.forceY(d => {
-            if (focusLevel && focusTargetX.has(d.id)) {
-              return height * 0.18; // top row for focused level
-            }
-            return yForBand[d.zlevel] || height / 2;
-          }).strength(0.8))
-          .on("tick", () => {
-            link
-              .attr("x1", d => d.source.x)
-              .attr("y1", d => d.source.y)
-              .attr("x2", d => d.target.x)
-              .attr("y2", d => d.target.y);
-
-            node
-              .attr("transform", d => "translate(" + d.x + "," + d.y + ")");
-
-            label
-              .attr("x", d => d.x + 10)
-              .attr("y", d => d.y);
-          });
-
-        node.call(d3.drag()
-          .on("start", (event, d) => {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-          })
-          .on("drag", (event, d) => {
-            d.fx = event.x;
-            d.fy = event.y;
-          })
-          .on("end", (event, d) => {
-            if (!event.active) simulation.alphaTarget(0);
-            // Keep d.fx / d.fy where the user left them,
-            // so manual arrangements persist until Default view is pressed.
-          }));
-
-        // Restore selection if still in this stack
-        if (selectedNode && stackNodes.includes(selectedNode)) {
-          node.classed("selected", n => n === selectedNode);
-          updateDetails(selectedNode);
+      // Restore selection if we have one and it's in this stack
+      if (selectedNodeId) {
+        const sel = stackNodes.find(d => d.id === selectedNodeId);
+        if (sel) {
+          node.classed("selected", d => d.id === selectedNodeId);
+          updateDetails(sel);
         } else {
-          selectedNode = null;
+          selectedNodeId = null;
           updateDetails(null);
         }
+      } else {
+        updateDetails(null);
       }
-    });
+    }
   </script>
 </body>
 </html>
