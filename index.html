@@ -41,8 +41,15 @@
       grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
       grid-gap: 1rem;
       align-items: flex-start;
+      margin-top: 0.5rem;
+    }
+    #mainColumn {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
     }
     #chart {
+      position: relative;
       background: white;
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.07);
@@ -59,7 +66,8 @@
       font-size: 10px;
       pointer-events: none;
     }
-    #legend {
+    #legend,
+    #controlsPanel {
       background: white;
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.07);
@@ -67,7 +75,8 @@
       font-size: 0.85rem;
       line-height: 1.4;
     }
-    #legend h2 {
+    #legend h2,
+    #controlsPanel h2 {
       font-size: 0.95rem;
       margin: 0 0 0.4rem 0;
     }
@@ -145,6 +154,34 @@
       color: #555;
       margin-top: 0.35rem;
     }
+
+    /* Node details overlay */
+    #details-panel {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 260px;
+      max-height: 90%;
+      overflow-y: auto;
+      background: rgba(255,255,255,0.96);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+      padding: 0.6rem 0.7rem;
+      font-size: 0.8rem;
+    }
+    #details-panel .details-title {
+      font-weight: 600;
+      font-size: 0.82rem;
+      margin-bottom: 0.25rem;
+    }
+    #details-panel ul {
+      margin-top: 0.1rem;
+      margin-bottom: 0.2rem;
+    }
+    #details-panel li {
+      margin-bottom: 0.1rem;
+    }
+
     .node.selected circle,
     .node.selected rect {
       stroke: #000;
@@ -157,8 +194,7 @@
   <p id="intro">
     Toggle between the teaching and research stacks. Nodes show people, platforms, vendors and landlords;
     solid lines show data and metric flows, dashed lines show ownership and governance relations.
-    Hover to see what is being extracted or connected. Click a node-type in the controls to pull that function into focus,
-    and click individual nodes to see what they ingest and emit.
+    Use the controls to pull different layers into focus, and click individual nodes to see what they ingest and emit.
   </p>
   <div id="controls">
     <button id="btnTeaching" class="active">Teaching stack</button>
@@ -166,14 +202,68 @@
   </div>
 
   <div id="layout">
-    <div id="chart">
-      <svg></svg>
+    <div id="mainColumn">
+      <div id="chart">
+        <svg></svg>
+        <div id="details-panel">
+          <div class="details-title">Node details</div>
+          <div id="details-content">
+            Click a node to see what data flows in and out of it.
+          </div>
+        </div>
+      </div>
+
+      <div id="legend">
+        <h2>Legend</h2>
+
+        <div class="legend-section">
+          <div class="legend-title">Node shapes (function in the stack)</div>
+          <div class="legend-row">● Circles – users and local services (people, support)</div>
+          <div class="legend-row">▭ Rounded rectangles – institutional software and analytics layers</div>
+          <div class="legend-row">■ Squares – owners and financial landlords</div>
+        </div>
+
+        <div class="legend-section">
+          <div class="legend-title">Line styles (how they relate)</div>
+
+          <div class="legend-edge">
+            <svg>
+              <line x1="2" y1="5" x2="40" y2="5" stroke="#333" stroke-width="1.5" />
+            </svg>
+            Data / metric flows
+          </div>
+          <div class="legend-edge">
+            <svg>
+              <line x1="2" y1="5" x2="40" y2="5" stroke="#999" stroke-width="1.5" stroke-dasharray="4 4" />
+            </svg>
+            Ownership (platform → vendor → landlord)
+          </div>
+          <div class="legend-edge">
+            <svg>
+              <line x1="2" y1="5" x2="40" y2="5" stroke="#666" stroke-width="1.5" stroke-dasharray="4 4" />
+            </svg>
+            Governance pressure (KPIs, strategy, workload)
+          </div>
+        </div>
+
+        <div class="legend-section">
+          <div class="legend-title">Vertical bands</div>
+          <div class="legend-row">Top: corporate owners, landlords, governance nodes</div>
+          <div class="legend-row">Middle: software and analytics layer</div>
+          <div class="legend-row">Bottom: people, services and lived practice</div>
+        </div>
+
+        <div class="legend-note">
+          Edge tooltips summarise the main kinds of data or metrics being extracted at each step.
+          The layout nudges nodes toward these three vertical bands, but can be re-centred by the controls.
+        </div>
+      </div>
     </div>
-    <aside id="legend">
+
+    <aside id="controlsPanel">
       <h2>Controls</h2>
 
       <div class="legend-section">
-        <!-- interactive level filters, no heading text -->
         <div class="legend-row legend-level" data-level="people"><span class="swatch people"></span> People and practitioners</div>
         <div class="legend-row legend-level" data-level="service"><span class="swatch service"></span> Local services and support</div>
         <div class="legend-row legend-level" data-level="platform"><span class="swatch platform"></span> Platforms and tools</div>
@@ -184,53 +274,9 @@
         <div class="legend-row legend-level" data-level="landlord"><span class="swatch landlord"></span> Financial landlords / parents</div>
       </div>
 
-      <div class="legend-section">
-        <div class="legend-title">Node shapes (function in the stack)</div>
-        <div class="legend-row">● Circles – users and local services (people, support)</div>
-        <div class="legend-row">▭ Rounded rectangles – institutional software and analytics layers</div>
-        <div class="legend-row">■ Squares – owners and financial landlords</div>
-      </div>
-
-      <div class="legend-section">
-        <div class="legend-title">Line styles (how they relate)</div>
-
-        <div class="legend-edge">
-          <svg>
-            <line x1="2" y1="5" x2="40" y2="5" stroke="#333" stroke-width="1.5" />
-          </svg>
-          Data / metric flows
-        </div>
-        <div class="legend-edge">
-          <svg>
-            <line x1="2" y1="5" x2="40" y2="5" stroke="#999" stroke-width="1.5" stroke-dasharray="4 4" />
-          </svg>
-          Ownership (platform → vendor → landlord)
-        </div>
-        <div class="legend-edge">
-          <svg>
-            <line x1="2" y1="5" x2="40" y2="5" stroke="#666" stroke-width="1.5" stroke-dasharray="4 4" />
-          </svg>
-          Governance pressure (KPIs, strategy, workload)
-        </div>
-      </div>
-
-      <div class="legend-section">
-        <div class="legend-title">Vertical bands</div>
-        <div class="legend-row">Top: corporate owners, landlords, governance nodes</div>
-        <div class="legend-row">Middle: software and analytics layer</div>
-        <div class="legend-row">Bottom: people, services and lived practice</div>
-      </div>
-
-      <div class="legend-section">
-        <div class="legend-title">Node details</div>
-        <div id="details-content">
-          Click a node to see what data flows in and out of it.
-        </div>
-      </div>
-
       <div class="legend-note">
-        Edge tooltips summarise the main kinds of data or metrics being extracted at each step.
-        Use the controls to pivot the layout, then click individual nodes to inspect their local data ecology.
+        Click a row to pull that node-type into a top row across the map. Click again to reset.
+        Combine this with the stack toggle above to compare teaching and research infrastructures.
       </div>
     </aside>
   </div>
@@ -290,7 +336,7 @@
         drawStack(currentStack);
       });
 
-      // Legend click to focus by level
+      // Controls click to focus by level
       d3.selectAll(".legend-level").on("click", function() {
         const level = this.getAttribute("data-level");
         if (focusLevel === level) {
