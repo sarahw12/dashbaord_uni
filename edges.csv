@@ -1,0 +1,62 @@
+source,target,stack,type,label
+P1,C1,teaching,flow,logins clicks submissions views
+P1,B1,teaching,flow,logins clicks submissions views
+P1,T1,teaching,flow,messages meetings file_shares
+P1,E1,teaching,flow,email_metadata calendar_events
+P1,Z1,teaching,flow,meeting_duration join_leave_times
+P1,Svc1,teaching,flow,tickets help_requests
+C1,SIS1,teaching,flow,grades enrolment assessment_results
+B1,SIS1,teaching,flow,grades enrolment assessment_results
+C1,A1,teaching,flow,engagement_metrics time_in_course
+B1,A1,teaching,flow,engagement_metrics time_in_course
+T1,A1,teaching,flow,chat_volume meeting_stats
+E1,A1,teaching,flow,send_receive_volume response_times
+Z1,A1,teaching,flow,usage_stats meeting_logs
+SIS1,A1,teaching,flow,progress fails withdrawals
+A1,GovKPIs,teaching,flow,aggregated_dashboards risk_flags
+GovKPIs,Exec,teaching,governance,kpi_reports oversight
+Exec,Svc1,teaching,governance,direction resourcing
+Exec,P1,teaching,governance,performance_pressure expectations
+C1,Instructure,teaching,ownership,licensed_platform
+B1,Anthology,teaching,ownership,licensed_platform
+T1,MS,teaching,ownership,licensed_platform
+E1,MS,teaching,ownership,licensed_platform
+A1,MS,teaching,ownership,analytics_stack
+Z1,ZoomCo,teaching,ownership,licensed_platform
+Instructure,KKR,teaching,ownership,private_equity_control
+Anthology,Veritas,teaching,ownership,private_equity_control
+Anthology,Nexus,teaching,ownership,debt_lenders_control
+R1Node,Repo,research,flow,manuscripts datasets code outputs
+R1Node,PureCRIS,research,flow,profiles cv_data activities keywords
+R1Node,PubE,research,flow,articles books
+R1Node,PubO,research,flow,articles books
+Repo,PureCRIS,research,flow,metadata dois access_stats
+LibSvc,PureCRIS,research,flow,cataloguing data_cleaning training_info
+PubE,Scopus,research,flow,article_metadata references citations
+PubO,Scopus,research,flow,article_metadata references citations
+PubE,WoS,research,flow,article_metadata references citations
+PubO,WoS,research,flow,article_metadata references citations
+Scopus,SciVal,research,flow,citation_counts field_categories collaboration_data
+WoS,InCites,research,flow,citation_counts field_categories collaboration_data
+Scopus,PureCRIS,research,flow,indexed_records synced_to_profiles
+SciVal,Rankings,research,flow,indicator_bundles scores
+InCites,Rankings,research,flow,indicator_bundles scores
+SciVal,GovResKPIs,research,flow,field_weighted_impact collaboration_patterns
+SciVal,GovProm,research,flow,benchmarks target_curves
+InCites,GovResKPIs,research,flow,impact_indices percentiles
+InCites,GovProm,research,flow,journal_metrics category_metrics
+Rankings,GovStrat,research,flow,league_table_positions scores
+PureCRIS,GovResKPIs,research,flow,networked_staff_profiles outputs_by_unit
+GovResKPIs,ExecRes,research,governance,performance_briefs dashboards
+GovProm,ExecRes,research,governance,promotion_rules workload_inputs
+GovStrat,ExecRes,research,governance,strategic_themes priorities
+Scopus,ElsevierCo,research,ownership,owned_platform
+SciVal,ElsevierCo,research,ownership,owned_platform
+PubE,ElsevierCo,research,ownership,owned_journals
+PureCRIS,ElsevierCo,research,ownership,owned_platform
+WoS,ClarivateCo,research,ownership,owned_platform
+InCites,ClarivateCo,research,ownership,owned_platform
+PubO,SpringerCo,research,ownership,major_publisher
+PubO,WileyCo,research,ownership,major_publisher
+ElsevierCo,RELXHold,research,ownership,corporate_parent
+ClarivateCo,ClarivatePLC,research,ownership,corporate_parent

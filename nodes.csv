@@ -1,0 +1,40 @@
+id,label,stack,level,zlevel
+P1,Students and academic staff,teaching,people,bottom
+Svc1,Teaching services and support,teaching,service,bottom
+C1,Canvas LMS,teaching,platform,middle
+B1,Blackboard Learn,teaching,platform,middle
+T1,Microsoft Teams,teaching,platform,middle
+E1,Email and calendar M365,teaching,platform,middle
+Z1,Zoom,teaching,platform,middle
+SIS1,Student information system,teaching,system,middle
+A1,Teaching and work dashboards,teaching,analytics,middle
+Exec,University Executive and Council,teaching,governance,top
+GovKPIs,Teaching and work KPIs and targets,teaching,governance,top
+Instructure,Instructure,teaching,company,top
+Anthology,Anthology or Blackboard,teaching,company,top
+MS,Microsoft,teaching,company,top
+ZoomCo,Zoom Video Communications,teaching,company,top
+KKR,KKR,teaching,landlord,top
+Veritas,Veritas Capital,teaching,landlord,top
+Nexus,Nexus and Oaktree,teaching,landlord,top
+R1Node,Researchers and HDR candidates,research,people,bottom
+LibSvc,Library and research services,research,service,bottom
+Repo,Institutional repository,research,platform,middle
+PureCRIS,Pure research information system,research,platform,middle
+PubE,Elsevier journals and books,research,platform,middle
+PubO,Other journals and books,research,platform,middle
+Scopus,Scopus,research,platform,middle
+WoS,Web of Science,research,platform,middle
+SciVal,SciVal analytics,research,analytics,middle
+InCites,InCites analytics,research,analytics,middle
+Rankings,Global rankings QS and THE,research,analytics,top
+ExecRes,Research executive and committees,research,governance,top
+GovResKPIs,Research performance KPIs,research,governance,top
+GovProm,Promotion and workload rules,research,governance,top
+GovStrat,Research strategy and themes,research,governance,top
+ElsevierCo,Elsevier,research,company,top
+ClarivateCo,Clarivate,research,company,top
+SpringerCo,Springer Nature,research,company,top
+WileyCo,Wiley,research,company,top
+RELXHold,RELX,research,landlord,top
+ClarivatePLC,Clarivate PLC,research,landlord,top
