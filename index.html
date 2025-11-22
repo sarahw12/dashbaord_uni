@@ -508,19 +508,22 @@
 
         const simulation = d3.forceSimulation(stackNodes)
           .force("link", d3.forceLink(stackEdges).id(d => d.id).distance(140))
-          .force("charge", d3.forceManyBody().strength(-260))
+          // Slightly softer repulsion so nodes don't jitter as much
+          .force("charge", d3.forceManyBody().strength(-200))
+          // X: centre by default, or align to focus row targets
           .force("x", d3.forceX(d => {
             if (focusLevel && focusTargetX.has(d.id)) {
               return focusTargetX.get(d.id);
             }
             return width / 2;
           }).strength(focusLevel ? 0.35 : 0.06))
+          // Y: strongly banded so rows line up more clearly
           .force("y", d3.forceY(d => {
             if (focusLevel && focusTargetX.has(d.id)) {
               return height * 0.18; // top row for focused level
             }
             return yForBand[d.zlevel] || height / 2;
-          }).strength(0.3))
+          }).strength(0.8))
           .on("tick", () => {
             link
               .attr("x1", d => d.source.x)
@@ -548,8 +551,8 @@
           })
           .on("end", (event, d) => {
             if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
+            // Keep d.fx / d.fy where the user left them,
+            // so manual arrangements persist.
           }));
 
         // Restore selection if still in this stack
