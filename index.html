@@ -264,6 +264,10 @@
       <h2>Controls</h2>
 
       <div class="legend-section">
+        <button id="btnDefaultLayout">Default view</button>
+      </div>
+
+      <div class="legend-section">
         <div class="legend-row legend-level" data-level="people"><span class="swatch people"></span> People and practitioners</div>
         <div class="legend-row legend-level" data-level="service"><span class="swatch service"></span> Local services and support</div>
         <div class="legend-row legend-level" data-level="platform"><span class="swatch platform"></span> Platforms and tools</div>
@@ -276,6 +280,7 @@
 
       <div class="legend-note">
         Click a row to pull that node-type into a top row across the map. Click again to reset.
+        Use Default view at any time to return to the baseline layout for this stack.
         Combine this with the stack toggle above to compare teaching and research infrastructures.
       </div>
     </aside>
@@ -316,7 +321,7 @@
       d3.csv("nodes.csv"),
       d3.csv("edges.csv")
     ]).then(([nodes, edges]) => {
-      drawStack(currentStack);
+      drawStack(currentStack, { reset: true });
 
       d3.select("#btnTeaching").on("click", () => {
         currentStack = "teaching";
@@ -324,7 +329,7 @@
         focusLevel = null;
         d3.selectAll(".legend-level").classed("active", false);
         setActiveButton(currentStack);
-        drawStack(currentStack);
+        drawStack(currentStack, { reset: true });
       });
 
       d3.select("#btnResearch").on("click", () => {
@@ -333,7 +338,15 @@
         focusLevel = null;
         d3.selectAll(".legend-level").classed("active", false);
         setActiveButton(currentStack);
-        drawStack(currentStack);
+        drawStack(currentStack, { reset: true });
+      });
+
+      // Default view button -> reset layout for current stack
+      d3.select("#btnDefaultLayout").on("click", () => {
+        selectedNode = null;
+        focusLevel = null;
+        d3.selectAll(".legend-level").classed("active", false);
+        drawStack(currentStack, { reset: true });
       });
 
       // Controls click to focus by level
@@ -351,7 +364,7 @@
       });
 
       function setActiveButton(stack) {
-        d3.selectAll("#controls button").classed("active", false);
+        d3.selectAll("#btnTeaching, #btnResearch").classed("active", false);
         if (stack === "teaching") {
           d3.select("#btnTeaching").classed("active", true);
         } else {
@@ -359,11 +372,42 @@
         }
       }
 
-      function drawStack(stack) {
+      function drawStack(stack, opts = {}) {
         svg.selectAll("*").remove();
 
         const stackNodes = nodes.filter(d => d.stack === stack);
         const nodeById = new Map(stackNodes.map(d => [d.id, d]));
+
+        const doReset = opts && opts.reset === true;
+
+        // Compute a simple "home" layout for this stack: nodes are spaced across
+        // each vertical band, and we can snap back to this when resetting.
+        const bands = ["top", "middle", "bottom"];
+        const bandNodes = { top: [], middle: [], bottom: [] };
+        stackNodes.forEach(d => {
+          const band = d.zlevel && bands.includes(d.zlevel) ? d.zlevel : "middle";
+          bandNodes[band].push(d);
+        });
+
+        bands.forEach(band => {
+          const arr = bandNodes[band];
+          if (!arr || arr.length === 0) return;
+          // Sort for stable ordering by level + label
+          arr.sort((a, b) => d3.ascending((a.level || "") + (a.label || ""), (b.level || "") + (b.label || "")));
+          const n = arr.length;
+          arr.forEach((d, i) => {
+            const homeX = width * (i + 1) / (n + 1);
+            const homeY = yForBand[band] || height / 2;
+            d.homeX = homeX;
+            d.homeY = homeY;
+            if (doReset) {
+              d.x = homeX;
+              d.y = homeY;
+              d.fx = homeX;
+              d.fy = homeY;
+            }
+          });
+        });
 
         const stackEdges = edges
           .filter(e => e.stack === stack && nodeById.has(e.source) && nodeById.has(e.target))
